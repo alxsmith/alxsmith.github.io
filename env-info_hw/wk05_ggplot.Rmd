@@ -25,10 +25,10 @@ You’ll join the population dataset to calculate per capita CO2 emissions.
 
 library(readr)
 library(readxl) # install.packages('readxl')
-library(dplyr)
 library(tidyr)
 library(httr)   # install.packages('httr')
 library(plyr)   # install.packages('plyr')
+library(dplyr)
 
 print(getwd())
 
@@ -86,9 +86,10 @@ percap2=inner_join(co2, popn, by=c("Country", "year")) %>%
       mutate(PCemiss= emiss/popn) %>%    
         group_by(Country) %>%    
           summarise(
-            mean=mean(PCemiss)
+            Mean=mean(PCemiss)
             )    %>%
-          slice(1:5) %>%
+               arrange(desc(Mean)) %>%      
+                slice(1:5) %>%
             print()
 ```
 
