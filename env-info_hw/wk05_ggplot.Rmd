@@ -1,22 +1,145 @@
 ---
-title: "wk05_ggplot"
+title: "wk05_ggplot_Assigment"
 author: "Alex Smith"
 date: "February 5, 2016"
-output: html_document
+output: 
+  html_document: 
+    toc: yes
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+##Joining Data
 
 ```{r}
-summary(cars)
+
+
+if ('env-info_hw' %in% list.files() & interactive()){
+    setwd('env-info_hw' )
+}
 ```
 
-You can also embed plots, for example:
+per capita CO2 emissions
+You’ll join the population dataset to calculate per capita CO2 emissions.
 
-```{r, echo=FALSE}
-plot(cars)
+**Task.** Calculate the per capita emissions by country (not World or EU28) and return the top 5 emitting countries for 2014.
+```{r}
+
+library(readr)
+library(readxl) # install.packages('readxl')
+library(dplyr)
+library(tidyr)
+library(httr)   # install.packages('httr')
+library(plyr)   # install.packages('plyr')
+
+print(getwd())
+
+# population Excel file
+url = 'http://edgar.jrc.ec.europa.eu/news_docs/CO2_1970-2014_dataset_of_CO2_report_2015.xls'
+out = 'co2_europa.xls'
+if (!file.exists(out)) writeBin(content(GET(url), 'raw'), out)
+
+
+# country lookup csv file
+url = 'https://raw.githubusercontent.com/ucsb-bren/env-info/gh-pages/data/co2_country_to_popn.csv'
+out = 'co2_country_to_popn.csv'
+if (!file.exists(out)) writeBin(content(GET(url), 'raw'), out)
+
+xls='../data/co2_europa.xls'
+
+# read in carbon dioxide emissions file
+co2 = read_excel(xls, skip=12) %>%
+   gather("year","emiss", 2:46) %>%
+    mutate(year=as.numeric(year))
+     
+
+
+# get lookup table to translate some country names in popn to those in co2 table
+cntry = read_csv('co2_country_to_popn.csv')
+
+# read in population and revalue some country names to match co2 table
+popn = read_csv('https://raw.githubusercontent.com/datasets/population/master/data/population.csv') %>%
+  select(Country=`Country Name`, year=Year, popn=Value) %>%
+  mutate(
+    Country = plyr::revalue(
+      Country, 
+      setNames(cntry$Country_co2, cntry$Country_popn)))
+# rename(popn,country=Country)
+
+percap1=inner_join(co2, popn, by=c("Country", "year")) %>%
+  filter(year==2014) %>%
+    filter(!Country==c("World", "EU28")) %>%
+      mutate(PCemiss= emiss/popn) %>%
+        arrange(desc(PCemiss)) %>%
+          slice(1:5) %>%
+            print()
+        
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+  
+  
+**Task.** Summarize the per capita emissions by country (not World or EU28) as the mean (ie average) value across all years and return the top 5 emitting countries.
+
+
+```{r}
+
+percap2=inner_join(co2, popn, by=c("Country", "year")) %>%
+    filter(!Country==c("World", "EU28")) %>%
+      mutate(PCemiss= emiss/popn) %>%    
+        group_by(Country) %>%    
+          summarise(
+            mean=mean(PCemiss)
+            )    %>%
+          slice(1:5) %>%
+            print()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##Plots
+
+```{r dataframes, include=FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(stats)
+library(readr)
+
+# thin=read.csv('../data/thinning.csv') %>%
+#   mutate(monthpost=paste( thin$postyears,  thin$month, sep="."))
+
+thin = read_csv('../data/thinning.csv') %>%
+  mutate(postfracyears = postyears + month/12)
+  
+clim=read.csv('../data/clim.csv')
+```
+
+
+```{r plot_1, echo=FALSE}
+
+# p1=ggplot(thin, aes(x=as.numeric(monthpost), y=cpool,     col=(as.factor(postyears)))) +
+#    stat_summary(fun.y="mean", geom = "line")
+
+thin %>%
+  ggplot(aes(
+    x   = month, 
+    y   = cpool,
+    color = as.factor(postyears))) +
+  stat_summary(fun.y = "mean", geom = "line") +
+  stat_summary(mapping = aes(
+    x   = month, 
+    y   = cpool), fun.y="mean", 
+    geom = "line", color='black', size=2) +
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
