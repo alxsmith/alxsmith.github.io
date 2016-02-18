@@ -1,0 +1,171 @@
+---
+title: "wk_06_widgets"
+author: "Alex Smith"
+date: "February 12, 2016"
+output: 
+  html_document: 
+    toc: yes
+---
+
+
+##Group Data: Regional Catch Data Motion Chart (1990-2013)
+
+    
+####See more fun @fishmgt interactive plots [here](http://fishmgt.github.io/wk_06_widgets_JHC.html)
+
+```{r googlevis library, results='asis', warning=F, include=F}
+suppressPackageStartupMessages({
+  library(googleVis)  # install.packages('googleVis')
+})
+library(readr)
+library(readxl)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+
+# must set this option for googleVis charts to show up
+op <- options(gvis.plot.tag='chart')
+
+```
+
+
+```{r motion data only, include=F}
+
+motioncatch=read_csv('../../fishmgt.github.io/data/For CRSeafood code/motioncatch.csv') %>%
+  distinct() %>%
+  group_by(Region,Year) %>%
+  summarise(
+    
+    Annual_Catch=sum(Catch)
+  )
+
+```
+
+```{r MotionChartCatch Data, results='asis', tidy=FALSE, echo=F}
+
+C= gvisMotionChart(motioncatch, idvar='Region', timevar = 'Year',  sizevar = 'Annual_Catch',  options=list(state='{"playDuration":15000,"xLambda":1,"yAxisOption":"2","iconType":"BUBBLE","xAxisOption":"_TIME","xZoomedDataMax":1356998400000,"yZoomedDataMin":506,"orderedByX":false,"yZoomedIn":false,"sizeOption":"2","yLambda":0,"uniColorForNonSelected":false,"showTrails":true,"iconKeySettings":[],"xZoomedDataMin":631152000000,"orderedByY":false,"nonSelectedAlpha":0.4,"duration":{"multiplier":1,"timeUnit":"Y"},"colorOption":"_UNIQUE_COLOR","dimensions":{"iconDimensions":["dim0"]},"time":"1990","xZoomedIn":false,"yZoomedDataMax":634463};'))
+
+
+plot(C)
+
+```
+
+##Individual Tasks  
+
+###**Task 1**
+
+What is the effect of changing the `adjust` parameter on the line density?
+
+We can use the `manipulate` function to provide interactive sliders, checkboxes and pickers. It only works within RStudio and does not work in a knitting context, so be sure to set `eval=FALSE` in the R chunk options.
+
+
+
+```{r manipulate_before, eval=F}
+library(manipulate) # install.packages('manipulate')
+
+manipulate({
+  
+  faithful %>%
+    ggplot(aes(eruptions)) + 
+    geom_histogram(aes(y = ..density..),  bins = 20) +
+    geom_density(color='blue', size=2, adjust=a) +
+    xlab('duration (minutes)') +
+    ylab('frequency density') +
+    ggtitle('geyser eruption duration')
+  
+}, a = slider(min = 0, max = 2, initial = 1, label = 'bandwidth adjustment', step = 0.2))
+```
+
+ **Task.** Add another R chunk with a slider adjusting the number of bins from 5 to 50, with step increments of 5.
+
+```{r manipulat_after, eval=F}
+
+manipulate({
+  
+  faithful %>%
+    ggplot(aes(eruptions)) + 
+    geom_histogram(aes(y = ..density..),  bins = b) +
+    geom_density(color='blue', size=2, adjust=a) +
+    xlab('duration (minutes)') +
+    ylab('frequency density') +
+    ggtitle('geyser eruption duration')
+  
+}, a = slider(min = 0, max = 2, initial = 1, label = 'bandwidth adjustment', step = 0.2), 
+   b = slider(min= 5, max= 50, initial=20, label = 'bin width adjustment', step= 5))
+```
+
+
+
+###**Task 2**
+
+
+Let's use ggvis `tooltip()` to show values of a scatterplot on mouse hover.
+
+```{r ggvis add_tooltip_before, eval=FALSE}
+library(ggvis) # install.packages('ggvis')
+
+cars = mtcars %>%
+  add_rownames('model') %>%        # dplyr drops rownames
+  mutate(id = row_number()) # add an id column to use ask the key
+
+all_values <- function(x) {
+  if(is.null(x)) return(NULL)
+  row <- cars[cars$id == x$id, ]
+  paste0(names(row), ": ", format(row), collapse = "<br/>")
+}
+
+cars %>% 
+  ggvis(x = ~wt, y = ~mpg, key := ~id) %>%
+  layer_points() %>%
+  add_tooltip(all_values, 'hover')
+```
+
+**Task.** Add another R chunk that only applies the `add_tooltip` on mouse click.
+
+```{r ggvis add_tooltip_after, eval=FALSE}
+
+cars = mtcars %>%
+  add_rownames('model') %>%        # dplyr drops rownames
+  mutate(id = row_number()) # add an id column to use ask the key
+
+all_values <- function(x) {
+  if(is.null(x)) return(NULL)
+  row <- cars[cars$id == x$id, ]
+  paste0(names(row), ": ", format(row), collapse = "<br/>")
+}
+
+cars %>% 
+  ggvis(x = ~wt, y = ~mpg, key := ~id) %>%
+  layer_points() %>%
+  add_tooltip(all_values, 'click')
+
+```
+
+
+###**Task 3**
+
+ `datatable`
+
+But there are many more rows than just the first 6. Which is why an interactive widget could be so helpful.
+
+```{r datatable_before}
+library(DT) # install.packages('DT')
+
+# default datatable
+datatable(iris)
+
+# remove document elements
+datatable(iris, options = list(dom = 'tp'))
+```
+
+Note how the [`dom` option](http://datatables.net/reference/option/dom) removed other elements from display such as the Show (`l`ength), Search (`f`iltering) and Showing (`i`nformation) elements from the default, but kept the `t`able and `p`agination control.
+
+**Task.** Output the table again with `datatable` and set the `options` to have `pagelength` of just 5 rows. (See `?datatable` and <http://rstudio.github.io/DT/>).
+
+```{r datatable_after}
+
+
+# remove document elements
+datatable(iris, options = list(pageLength = 5, dom = 'tip'))
+```
