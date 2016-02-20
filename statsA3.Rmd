@@ -1,0 +1,229 @@
+---
+title: "Assignment 3"
+author: "Alex Smith"
+date: "February 16, 2016"
+output:
+  html_document: default
+  pdf_document: default
+  word_document:
+    fig_caption: yes
+---
+```{r stuff, include=F}
+
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+
+require(knitr)
+options(digits = 2)
+```
+
+
+##Part 1: 
+
+contains values for the percent of territorial waters designated as MPA from 1990 – 2012 for countries within the “Latin America and Caribbean” region as designated by World Bank (32 countries total included, countries without MPA data were omitted). Data source: The World Bank.
+
+For Part 1, you are asked: Was there a significant increase in MPA size (as percent of territorial waters) for Latin American and Caribbean countries between 2000 and 2010? Report the results in a concise statement (1 – 2 sentences), including relevant statistical information, that would be suitable for submission to a peer-reviewed journal article (you do not need to include a figure for Part 1). 
+
+```{r p1_data, include=F}
+d1=read_csv('MPAData.csv')
+
+initial=d1$`2000`
+post=d1$`2010`
+
+test1=t.test(post, initial, alternative = "greater", paired = T, conf.level = .975)
+print(test1)
+
+```
+
+ (`r mean(post)` ± `r sd(post)` and `r mean(initial)` ± `r sd(initial)` percent of territorial waters,
+respectively (M ± SD); n = `r length(post)` countries in both years; t(30) = 2, p =`r test1$p.value`, α = 0.025.”
+
+
+
+##Part2
+
+For Part 2, you are asked to describe the change in MPA area over time for Belize from 1995 to 2012 by determining a nonlinear model predicting the growth (use Belize data from the MPAData.csv file). 
+
+Report the results in two formats: (1) as a graph showing the original data along with the model prediction line (include a figure caption), and (2) presented in a table showing the relevant outputs (estimates, errors, p-values) for the nonlinear model parameters, with a figure caption. 
+
+**Hints: To simplify your analysis, create a new simplified data frame with only the Belize MPA data from 1995 - 2012. To simplify your model parameters recreate the years column as 0 – 16 (with Year 0 = 1995). 
+
+
+```{r p2_data, include=F}
+
+yr=seq(from=0, to=16, by=1)
+
+d2=gather(d1, "Year", "cover", 3:24) %>%
+    filter(Country=="Belize" & Year>=1995) %>%
+      cbind(yr)
+  
+ plot(yr,d2$cover) 
+ 
+ A=14
+ B=13
+```
+```{r p_2 model, include=F}
+ #So, we can estimate r by finding the slope of the relationship between ln(cover) and time during the early exponential phase of growth. 
+ 
+ plot(d2$yr[1:5], log(d2$cover[1:5]))
+
+ estmr=lm(log(d2$cover[1:5])~d2$yr[1:5])
+ r=as.numeric(estmr$coefficients[2])
+
+ mod1=nls(cover ~ A/(1+B*exp(-r*yr)), start = list(A=14, B=13, r=.7417), data = d2, trace = T)
+ 
+ S=summary(mod1)
+ 
+ confint(mod1)
+ 
+ A=coef(mod1)[1]
+ B=coef(mod1)[2]
+ r=coef(mod1)[3]
+ 
+ testseq=seq(0,20, length=100)
+ 
+ coverfit=A/(1+B*exp(-r*testseq))
+ 
+ fitframe=data.frame(testseq, coverfit)
+ 
+ labls=seq(from=1995, to=(1995+20), by=5)
+```
+
+```{r p_2 model plot, echo=F, fig.cap="Percent of Belizian territorial waters designated as Marine Protected Areas (MPA) from 1995-2012.The light line indicates predicted population values for logistic growth with parameters fitted by nonlinear least squares.  "}
+
+ ggplot(d2, aes(x=yr, y=cover))+
+   geom_point(color="blue", size=2)+
+   theme_bw()+
+   geom_line(data=fitframe, aes(x=testseq, y=coverfit), color="skyblue",size=1)+
+   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+   xlab("Year")+
+   ylab("MPA coverage (percent of territorial waters) ")+
+   scale_x_continuous(limits=c(0,20), breaks=seq(0,20,5), labels = labls)+
+   scale_y_continuous(limits=c(0,15), breaks=seq(0,15,2), expand = c(0,0))
+   
+   
+  knitr::kable(S$parameters)
+ 
+```
+
+The light line indicates predicted population values for logistic growth with parameters fitted by nonlinear least squares. For the logistic growth model y = A/(1 + Be^-rt),parameters were estimated as: A = `r A` (SE = `r S$parameters[1,2]`, p < 0.001); B = `r B` (SE =`r S$parameters[2,2]`, p = `r S$parameters[2,4]`); and r =`r r`(SE = `r S$parameters[3,2]`, p < 0.001). 
+
+
+
+##Part 3
+
+Investigate relationships between Region and Birth Year on the likelihood that a blues guitarist will use the alternative-, utility- or dead-thumb style. Create a graph in which you show the probability of a guitarist using each of the three styles for a range of birth years and distinguished by region. Include a figure caption. Also create a simple table summarizing the results of your analysis (e.g. coefficients, standard errors, significances – see below, you do not need to include information for the intercepts). Include a table caption. 
+
+**Note 1: Remember in lab we used a manual method of calculating the p-values using a version of Wald’s test – when you do it manually and values are very small, the output might just say p = 0…we know that it’s not actually 0 and we NEVER want to report p = 0, but you can be sure that these p-values are < 0.001, which should be convincing enough.
+
+**Note 2: The intercepts will be whacky because you’re just using the actual year, e.g. “1904,” so just focus on the coefficients. Your calculations for predicted probabilities that you use to make the graph will still work just fine.  
+
+```{r p_3 model_blank, include=F}
+  
+d3=read_csv('BluesHands.csv')
+
+mod3=nnet::multinom(ThumbStyle ~ BirthYear + Region, data=d3)
+
+S3=summary(mod3)
+
+relativerisk=exp(coef(mod3))
+
+relriskSE=summary(mod3)$standard.errors
+
+#you could find the p-values for each of the coefficients by calculating the z-scores, then the p-values: 
+
+Z= summary(mod3)$coefficients/summary(mod3)$standard.errors
+p= (1-pnorm(abs(Z), 0, 1))*2
+
+kable(relriskSE)
+kable(relativerisk)
+```
+
+```{r p3 model predic, include=F}
+
+df3fit=data.frame(Region = rep(c( unique(d3$Region)), each=67), 
+               BirthYear= rep(seq(1874,1940, by=1) ,3))
+
+#Use the data in the data frame you just created (here, df3fit to find model predictions for probabilities over the range of GPAs for each undergraduate field.
+
+predictmod3=cbind(df3fit,
+                  predict(mod3, newdata=df3fit, type = "probs", se=TRUE))
+
+#So, based on the ‘mod3’ model, the probability of a guitarist born in year 1874 in Texas using  alternating  is 0..069, or 6.9%, versus a 85.6% probability of dead and a 7.5% probability of utiliy. 
+
+meltedprop= reshape::melt.data.frame(predictmod3, id.vars= c("Region", "BirthYear"))
+
+```
+
+```{r p_3 plot, echo=F, fig.cap="Effect of Birth year and Region (Delta (red); East (green); or Texas (blue)) on the predicted probabilities (left y-axis) of a blues gutarist using the Alternating, Dead, or Utility (right y-axis) thumb picking style, as determined by multinomial logistic regression (n = 93). "}
+
+ggplot(meltedprop, aes(x=BirthYear, y=value, colour=Region))+
+  geom_line()+
+  ylab("Probability") +
+  facet_grid(variable ~.,scales = "fixed")+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme_bw() +
+  xlab("birth year") 
+  
+
+
+```
+
+##Part 4
+
+For Part 4, you will use monthly averaged discharge (cubic feet per second) data for the Truckee River (measured near Truckee, CA) for 2000 – 2013, accessed from the USGS Water Data for the Nation website and compiled into the file ‘TruckeeData.csv.’
+
+The file has four columns: Year, Month (of the year, numerical), MonthElapsed (months since January 2000), and RiverFlow (the averaged monthly discharge in cfs). 
+
+For Part 4, you are asked to explore trends in the time-series data. 
+
+(a)	Decompose the data and include the plots in your results (the one where you have the four graphs for original data, trend, seasonal and random components), with a figure caption. 
+
+Then, investigate those graphs to help you to generally describe the time series data in 2 - 3 sentences in body text below the figure. For example, does it appear additive or multiplicative? Stationary or non-stationary? Are there outliers? Is there seasonality? Does there appear to be a trend beyond the normal seasonality? Etc. 
+
+(b)	Use ARIMA (based on parameters from the auto.arima() function for this assignment) to forecast the Truckee River flow through the end of 2018 (an additional 60 months beyond the last observation in the dataset). Include the forecasted data as a graph with finalized axis labels and a figure caption. **Note: the dark gray and light gray regions around the predicted line indicate the upper and lower limits of the 80% and 95% confidence intervals, respectively.
+
+```{r p_4 data, include=F}
+
+d4=read_csv('TruckeeData.csv')
+
+library(forecast)
+
+tsflow= ts(d4$RiverFlow, frequency = 12, start = c(2000,1))
+
+plot(tsflow)
+
+```
+
+```{r p_4 decomp plot, echo=F, fig.cap=""}
+
+decompflow=decompose(tsflow)
+plot(decompflow)
+plot(decompflow$figure)
+```
+
+```{r p_4 arima, echo=F}
+#flowstat=decompflow$x- decompflow$trend
+#plot(flowstationary)
+
+flowacf=acf(decompflow$x)
+
+optimal=auto.arima(tsflow) 
+  # print()
+
+flowarima= arima(tsflow, order=c(2,0,1), seasonal = list(order=c(1,0,0)))
+
+hist(flowarima$residuals)
+```
+
+```{r p_4 forecast}
+
+flowFORE=forecast(flowarima, h=60)
+
+fore=plot(flowFORE, xlab="Year", ylab="monthly averaged discharge (cubic feet per second)", main="Historical and Forecast Truckee River Flow\n(2000-2018)", xlim=range(2000: 2018))
+
+```
+
