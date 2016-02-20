@@ -1,0 +1,37 @@
+---
+title: "conchtest"
+author: "Alex Smith"
+date: "February 19, 2016"
+output: html_document
+---
+
+
+```{r googlevis library, results='asis', warning=F, include=F}
+suppressPackageStartupMessages({
+  library(googleVis)  # install.packages('googleVis')
+})
+library(readr)
+library(readxl)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(tidyr)
+
+# must set this option for googleVis charts to show up
+op <- options(gvis.plot.tag='chart')
+
+```
+
+```{r}
+d1=read_csv('ctest.csv')%>%
+  gather(zone, catch, 2:4)
+```
+
+```{r MotionChartCatch Data, results='asis', tidy=FALSE, echo=F}
+
+C= gvisMotionChart(d1, idvar='zone', timevar = 'Time',date.format = '%m/%d/%y',options=list(state='{"nonSelectedAlpha":0.4,"xLambda":1,"playDuration":15000,"iconType":"BUBBLE","xZoomedDataMax":-1923782400000,"yZoomedDataMin":1,"yZoomedIn":false,"xAxisOption":"_TIME","sizeOption":"2","orderedByX":false,"uniColorForNonSelected":false,"showTrails":true,"xZoomedDataMin":-2018995200000,"orderedByY":false,"yLambda":1,"duration":{"multiplier":1,"timeUnit":"D"},"colorOption":"_UNIQUE_COLOR","dimensions":{"iconDimensions":["dim0"]},"time":"1906-01-09","yAxisOption":"2","xZoomedIn":false,"yZoomedDataMax":18.43,"iconKeySettings":[]}'))
+
+
+plot(C)
+
+```
