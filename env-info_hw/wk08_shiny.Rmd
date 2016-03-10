@@ -9,3 +9,4 @@ output: html_document
 shiny::runGitHub("<alxsmith.github.io>", "<alxsmith>", subdir = "./census-app/")
 ```
 
+[Census App](https://alxsmith.shinyapps.io/census-app/)
