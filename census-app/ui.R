@@ -1,6 +1,6 @@
 library(shiny)
 shinyUI(fluidPage(
-  titlePanel("censusVis"),
+  titlePanel("2010 US Census Data"),
   
   sidebarLayout(
     sidebarPanel(
